@@ -3,6 +3,8 @@ ipypathchooser
 
 An ipywidget for choosing a path (file or directory) interactively
 
+Heavily inspired by [ipyfilechooser](https://github.com/crahan/ipyfilechooser), released under the [MIT license](https://github.com/crahan/ipyfilechooser/blob/master/LICENSE).
+
 Installation
 ------------
 

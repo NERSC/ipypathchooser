@@ -17,7 +17,6 @@
 # Standard lib
 import os
 # Third party
-from traitlets import All
 from ipywidgets import (
     Dropdown, Text, Select, Button, HTML,
     Layout, GridBox, HBox, VBox, Output
@@ -162,11 +161,6 @@ class PathChooser(VBox):
                 widget.observe(callback, names='value')
             else:
                 widget.unobserve(callback, names='value')
-        # temporary
-        # if active:
-        #     self._directory_content.observe(self._on_directory_content_select, names='value', type=All)
-        # else:
-        #     self._directory_content.unobserve(self._on_directory_content_select, names='value', type=All)
 
     def _set_form_values(self, current_directory=None, selected_item=None):
         '''Set the form values'''

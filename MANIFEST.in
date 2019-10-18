@@ -1,0 +1,2 @@
+recursive-include ipypathchooser/static *.*
+include ipypathchooser.json

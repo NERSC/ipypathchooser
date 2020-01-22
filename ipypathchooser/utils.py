@@ -1,7 +1,9 @@
 import os
 
 def get_subpaths(path):
-    '''Walk a path and return a list of subpaths'''
+    """
+    Walk a path and return a list of subpaths.
+    """
     if os.path.isfile(path):
         path = os.path.dirname(path)
 
@@ -15,11 +17,18 @@ def get_subpaths(path):
     return paths
 
 def has_parent(path):
-    '''Check if a path has a parent folder'''
+    """
+    Check if a path has a parent folder.
+    """
     return os.path.basename(path) != ''
 
 def get_dir_contents(path, hidden=False):
-    '''Get directory contents'''
+    """
+    Get sorted directory contents, directories first followed by files.
+
+    :param hidden: Show hidden files and directories
+    :return: A list shaped like [('directory', {dir}), ..., ('file', {file}), ...]
+    """
     files = list()
     dirs = list()
 
@@ -35,4 +44,6 @@ def get_dir_contents(path, hidden=False):
                 files.append(item)
         if has_parent(path):
             dirs.insert(0, '..')
-    return sorted(dirs) + sorted(files)
+    dirs = [('directory', d) for d in sorted(dirs)]
+    files = [('file', f) for f in sorted(files)]
+    return dirs + files

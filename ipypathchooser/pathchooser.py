@@ -6,7 +6,11 @@ from ipywidgets import (
     Layout, GridBox, HBox, VBox, Output
 )
 # Local
-from . import utils, double_click_select
+from . import utils
+from .double_click_select import DoubleClickSelect
+
+font_awesome_folder_unicode = '\uf07b'
+nonbreaking_space = '\xa0'
 
 class PathChooser(VBox):
     def __init__(
@@ -18,24 +22,28 @@ class PathChooser(VBox):
             show_hidden=False,
             **kwargs,
         ):
-        # A function called when the chosen path changes
-        self.on_chosen_path_change = on_chosen_path_change
+        """
+        PathChooser constructor.
 
-        # For debugging
-        self.output = Output(layout={'border': '1px solid white'})
+        :param default_directory: The initial directory
+        :param chosen_path_desc: A label for what the chosen path represents
+        :param on_chosen_path_change: A callback receiving (old_path, new_path)
+        :param title: A title for the whole widget
+        :param show_hidden: Show hidden files and folders
+        """
 
-        # The default directory
         self._default_directory = default_directory.rstrip(os.path.sep)
-
-        # An option specifying whether to show hidden files and folders
-        self._show_hidden = show_hidden
-
-        # An optional title for the whole widget
+        # chosen_path_desc is used directly below in an HTML widget
+        self.on_chosen_path_change = on_chosen_path_change
         self._title = HTML(
             value=title,
         )
         if title is '':
             self._title.layout.display = 'none'
+        self._show_hidden = show_hidden
+
+        # For debugging
+        self.output = Output(layout={'border': '1px solid white'})
 
         # Widgets
         # A dropdown with the current directory and its ancestors
@@ -46,7 +54,7 @@ class PathChooser(VBox):
                 grid_area='path-list',
             )
         )
-        # A textbox for setting and describing the selected directory entry
+        # A textbox for setting and describing the selected item
         self._selected_item = Text(
             placeholder='selected item',
             layout=Layout(
@@ -55,7 +63,7 @@ class PathChooser(VBox):
             )
         )
         # A select listing the contents of the current directory
-        self._directory_content = double_click_select.DoubleClickSelect(
+        self._directory_content = DoubleClickSelect(
             rows=8,
             layout=Layout(
                 width='auto',
@@ -135,31 +143,51 @@ class PathChooser(VBox):
         )
 
     def _observe_widgets(self, active=True):
+        """
+        A helper function for toggling interactive element's callbacks.
+        """
         widgets_vs_callbacks = [
             (self._path_list, self._on_path_list_select),
             (self._selected_item, self._on_selected_item_change),
             (self._directory_content, self._on_directory_content_select),
         ]
-        for widget, callback in widgets_vs_callbacks:
-            if active:
-                widget.observe(callback, names='value')
-            else:
+        if active:
+            for widget, callback in widgets_vs_callbacks:
+                    widget.observe(callback, names='value')
+            self._directory_content.observe(
+                self._on_directory_doubleclick,
+                names='dblclick',
+            )
+        else:
+            for widget, callback in widgets_vs_callbacks:
                 widget.unobserve(callback, names='value')
+            self._directory_content.unobserve(
+                self._on_directory_doubleclick,
+                names='dblclick',
+            )
 
     def _set_form_values(self, current_directory=None, selected_item=None):
         """
-        Set the form values
+        Set the two defining values of the PathChooser.
+
+        :param current_directory: The directory the chooser is looking at
+        :param selected_item: The item (file or directory) chosen within the current_directory
         """
-        # Temporarily disable widget triggers
+        # Temporarily disable widget callbacks to silently manipulate values
         self._observe_widgets(False)
 
         if current_directory:
             self._path_list.options = utils.get_subpaths(current_directory)
             self._path_list.value = current_directory
-            self._directory_content.options = utils.get_dir_contents(
+            types_vs_contents = utils.get_dir_contents(
                 current_directory,
                 hidden=self._show_hidden,
             )
+            self._directory_content.icons = [
+                font_awesome_folder_unicode if x[0] == 'directory' else nonbreaking_space * 4
+                for x in types_vs_contents
+            ]
+            self._directory_content.options = [x[1] for x in types_vs_contents]
         if selected_item:
             self._selected_item.value = selected_item
 
@@ -178,74 +206,85 @@ class PathChooser(VBox):
 
     def _on_path_list_select(self, change):
         """
-        Handler for when a new path is selected
+        Handler for when a new path is selected from the path list dropdown.
         """
         self._set_form_values(
-            change['new'],
+            change.new,
         )
 
     def _on_directory_content_select(self, change):
         """
-        Handler for when a directory entry is selected
+        Handler for when a directory entry is selected.
         """
         current_directory = self._path_list.value
-        selected_item = change['new']
-        self.output.append_stdout(f'selected_item: {selected_item} \n')
-        # Navigate up
-        if selected_item == '..':
-            self._set_form_values(os.path.dirname(current_directory))
-        else:
-            # Simulate "double-click" by handling selections of selected items
-            # Well, at least that was the plan... doesn't fire twice
-            # TODO: Fix this
-            if self._selected_item.value == selected_item:
-                new_path = os.path.join(current_directory, selected_item)
-                # Navigate down
-                if os.path.isdir(new_path):
-                    current_directory = new_path
-                # Choose the file
-                elif os.path.isfile(new_path):
-                    self.chosen_path = os.path.join(current_directory, selected_item)
+        selected_item = change.new
+        if selected_item != '..':
             self._set_form_values(
                 current_directory,
                 selected_item,
             )
 
+    def _on_directory_doubleclick(self, change):
+        dblclick_index = change.new
+        current_directory = self._path_list.value
+        clicked_item = self._directory_content.options[dblclick_index]
+        # Navigate up
+        if clicked_item == '..':
+            self._set_form_values(os.path.dirname(current_directory))
+        else:
+            new_path = os.path.join(current_directory, clicked_item)
+            # Navigate down
+            if os.path.isdir(new_path):
+                self._set_form_values(new_path)
+            # Choose the file
+            elif os.path.isfile(new_path):
+                self.hide()
+                self.chosen_path = new_path
+
     def _on_selected_item_change(self, change):
         """
-        Handler for when the _selected_item field changes
+        Handler for when the _selected_item text field changes.
         """
-        self._set_form_values(
-            selected_item=change['new'],
-        )
+        self._set_form_values(selected_item=change.new)
+
+    def show(self):
+        """
+        Open the PathChooser.
+        """
+        self._main_area.layout.display = None
+        self._cancel.layout.display = None
+
+    def hide(self):
+        """
+        Hide the PathChooser.
+        """
+        self._main_area.layout.display = 'none'
+        self._cancel.layout.display = 'none'
 
     def _on_choose_click(self, button):
         """
-        Handler for when the choose button is clicked
+        Handler for when the choose button is clicked.
         """
         # If _main_area is not visible, make it visible and show the cancel button
         if self._main_area.layout.display is 'none':
-            self._main_area.layout.display = None
-            self._cancel.layout.display = None
+            self.show()
             self._set_form_values()
         # Otherwise, hide the _main_area and the cancel button
         else:
-            self._main_area.layout.display = 'none'
-            self._cancel.layout.display = 'none'
+            self.hide()
             chosen_path = os.path.join(self._path_list.value, self._selected_item.value)
             self.chosen_path = chosen_path
 
     def _on_cancel_click(self, button):
         """
-        Handler for when the cancel button is clicked
+        Handler for when the cancel button is clicked.
         """
-        self._main_area.layout.display = 'none'
-        self._cancel.layout.display = 'none'
+        self.hide()
         self._choose.disabled = False
 
     def reset(self):
         """
-        Reset the form to its defaults
+        Reset the form to its defaults.
         """
         self.chosen_path = ''
         self.set_form_values(
@@ -255,24 +294,30 @@ class PathChooser(VBox):
 
     def refresh(self):
         """
-        Re-render the form
+        Re-render the form.
         """
         self._set_form_values(
             self._path_list.value,
             self._selected_item.value,
         )
 
+    def print(self, message):
+        """
+        Print `message` to self.output for debugging purposes.
+        """
+        self.output.append_stdout(f'{message}\n')
+
     @property
     def show_hidden(self):
         """
-        Get the current visibility setting for hidden files and folders
+        Get the current visibility setting for hidden files and folders.
         """
         return self._show_hidden
 
     @show_hidden.setter
     def show_hidden(self, hidden):
         """
-        Set the visibility of hidden files and folders
+        Set the visibility of hidden files and folders.
         """
         self._show_hidden = hidden
         self.refresh()
@@ -280,28 +325,28 @@ class PathChooser(VBox):
     @property
     def rows(self):
         """
-        Get current number of rows
+        Get current number of rows.
         """
         return self._dircontent.rows
 
     @rows.setter
     def rows(self, rows):
         """
-        Set number of rows
+        Set number of rows.
         """
         self._dircontent.rows = rows
 
     @property
     def title(self):
         """
-        Get the title
+        Get the title.
         """
         return self._title.value
 
     @title.setter
     def title(self, title):
         """
-        Set the title
+        Set the title.
         """
         self._title.value = title
 
@@ -313,14 +358,14 @@ class PathChooser(VBox):
     @property
     def chosen_path(self):
         """
-        Get the chosen_path value
+        Get the chosen_path value.
         """
         return self._chosen_path
 
     @chosen_path.setter
     def chosen_path(self, chosen_path):
         """
-        Set the chosen_path and update chosen_path_label
+        Set chosen_path and update chosen_path_label. Trigger callback if present.
         """
         old_path = self._chosen_path
         self._chosen_path = chosen_path

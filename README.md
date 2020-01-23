@@ -57,7 +57,9 @@ To navigate into a directory, double-click it.
 
 To navigate up a level, double-click `..` or use the path list dropdown in the top left.
 
-If you double-click a file, it will automatically be chosen. To choose a directory, you must first select it and click the _Choose_ or _Change_ button.
+If you double-click a file, it will automatically be chosen. 
+
+To choose a directory, you must first select it and click the _Choose_ or _Change_ button.
 
 To read out the chosen path from a PathChooser called `chooser`, you would access `chooser.chosen_path`. 
 

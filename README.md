@@ -63,7 +63,7 @@ To choose a directory, you must first select it and click the _Choose_ or _Chang
 
 To read out the chosen path from a PathChooser called `chooser`, you would access `chooser.chosen_path`. 
 
-There are various options that can be set during instantion or after the fact to customize the widget's behavior.
+There are various options that can be set during instantiation or after the fact to customize the widget's behavior.
 
 The constructor handles most of them and is as follows:
 

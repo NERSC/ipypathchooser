@@ -33,7 +33,7 @@
   "dependencies": {
     "@jupyter-widgets/base": "^1.1 || ^2",
     "@jupyter-widgets/controls": "^1.5.3",
-    "lodash": "^4.17.4"
+    "lodash": "^4.17.19"
   },
   "jupyterlab": {
     "extension": "lib/labplugin"
